@@ -88,11 +88,27 @@ t_entry	*ft_parse(int argc, char **argv)
 {
 	t_entry	*data;
 
-	if (ft_check_digit(argc, argv) != 0 || ft_atoi(argv[1]) == 0)
+	if (ft_check_digit(argc, argv) != 0)
 		return (NULL);
-	if (ft_atoi(argv[1]) > 1000)
+	if (ft_atoi(argv[1]) == 0)
 	{
-		printf("Too many philosophers\n");
+		printf("Number of philosophers must be at least 1\n");
+		return (NULL);
+	}
+	if (ft_atoi(argv[1]) > MAX_PHILOSOPHERS)
+	{
+		printf("Too many philosophers (max %d)\n", MAX_PHILOSOPHERS);
+		return (NULL);
+	}
+	if (ft_atoi(argv[2]) <= 0 || ft_atoi(argv[3]) <= 0
+		|| ft_atoi(argv[4]) <= 0)
+	{
+		printf("Time values must be positive\n");
+		return (NULL);
+	}
+	if (argc == 6 && ft_atoi(argv[5]) <= 0)
+	{
+		printf("Number of meals must be positive\n");
 		return (NULL);
 	}
 	data = malloc(sizeof(t_entry));

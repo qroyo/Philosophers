@@ -12,10 +12,9 @@
 
 #include "philo.h"
 
-void	ft_clean_philo(t_entry *data);
-int		ft_create_philo(t_entry *data);
-void	ft_philo_join(t_entry *data);
-int		ft_check_create_watch(t_entry *data);
+static int		ft_create_philo(t_entry *data);
+static void		ft_philo_join(t_entry *data);
+static int		ft_check_create_watch(t_entry *data);
 
 int	main(int argc, char **argv)
 {
@@ -27,9 +26,13 @@ int	main(int argc, char **argv)
 		if (!data)
 			return (2);
 		if (ft_init(data) != 0)
+		{
+			free(data);
 			return (1);
+		}
 		if (ft_create_philo(data) == 1 || ft_check_create_watch(data) == 1)
 		{
+			pthread_mutex_unlock(&data->start);
 			ft_clean_philo(data);
 			return (3);
 		}
@@ -44,7 +47,7 @@ int	main(int argc, char **argv)
 	return (0);
 }
 
-void	ft_philo_join(t_entry *data)
+static void	ft_philo_join(t_entry *data)
 {
 	int				i;
 	struct timeval	time;
@@ -67,7 +70,7 @@ void	ft_philo_join(t_entry *data)
 	pthread_join(data->check_philo, NULL);
 }
 
-int	ft_create_philo(t_entry *data)
+static int	ft_create_philo(t_entry *data)
 {
 	int	i;
 	int	j;
@@ -77,8 +80,8 @@ int	ft_create_philo(t_entry *data)
 	pthread_mutex_lock(&data->start);
 	while (++i < data->nb_philo)
 	{
-		if (pthread_create(data->philo_tab + i, NULL, \
-		eat_sleep_think, data) != 0)
+		if (pthread_create(data->philo_tab + i, NULL,
+				eat_sleep_think, data) != 0)
 		{
 			while (j < i)
 			{
@@ -92,7 +95,7 @@ int	ft_create_philo(t_entry *data)
 	return (0);
 }
 
-int	ft_check_create_watch(t_entry *data)
+static int	ft_check_create_watch(t_entry *data)
 {
 	int	j;
 
@@ -123,7 +126,6 @@ void	ft_clean_philo(t_entry *data)
 	while (++i < data->nb_philo)
 		pthread_mutex_destroy(&data->fork[i]);
 	free(data->fork);
-	free(data->next_id);
 	free(data->philo_tab);
 	free(data->last_eat);
 	free(data->fork_philo);

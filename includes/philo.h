@@ -21,9 +21,11 @@
 # include <pthread.h>
 # include <sys/time.h>
 
+# define SCHEDULE_GRANULARITY_US	500
+# define MAX_PHILOSOPHERS			1000
+
 typedef struct s_entry
 {
-	int				*next_id;
 	int				*fork_philo;
 	int				*id_philo;
 	long			nb_philo;
@@ -32,17 +34,17 @@ typedef struct s_entry
 	long			time_to_eat;
 	long			nb_meal;
 	long			philo_full;
+	int				alive;
+	int				stop;
 	pthread_t		*philo_tab;
 	pthread_t		check_philo;
 	pthread_mutex_t	*fork;
-	pthread_mutex_t	mutex_id;
 	pthread_mutex_t	wrt;
 	pthread_mutex_t	start;
 	pthread_mutex_t	is_alive;
 	pthread_mutex_t	last_eat_m;
 	pthread_mutex_t	id_data;
 	pthread_mutex_t	full_stomach;
-	int				alive;
 	struct timeval	*last_eat;
 	struct timeval	time_start;
 }	t_entry;
@@ -57,18 +59,43 @@ typedef struct s_philo
 	long			nb_meal;
 }	t_philo;
 
+/* parsing.c */
 t_entry	*ft_parse(int argc, char **argv);
+
+/* routine.c */
 void	*eat_sleep_think(void *arg);
-int		ft_init(t_entry *data);
+void	ft_full_stomach(t_entry *data);
+
+/* eat_sleep_think.c */
+void	is_eating(t_entry *data, t_philo *philo_param);
+void	is_sleeping(t_entry *data, t_philo *philo_param);
+void	is_thinking(t_entry *data, t_philo *philo_param);
+
+/* threads.c */
 void	*check_philo(void *arg);
-long	ft_time(struct timeval t_first, struct timeval t_second);
 void	ft_start(t_entry *data);
+long	ft_time(struct timeval t_first, struct timeval t_second);
+
+/* init.c */
+int		ft_init(t_entry *data);
+void	ft_init_philo(t_entry *data, t_philo *philo_param);
+
+/* init_destroy_fork.c */
+int		ft_init_fork(t_entry *data);
+void	ft_destroy_fork(t_entry *data, int check_fork);
+
+/* init_mutex.c */
+int		ft_init_mutex(t_entry *data);
+void	ft_destroy_init(int check_init, t_entry *data);
+
+/* init_free_malloc.c */
+int		ft_init_malloc(t_entry *data);
+void	ft_free(int check_malloc, t_entry *data);
+
+/* ft_usleep.c */
 void	ft_usleep(long time, t_philo *philo_param, t_entry *data);
-t_philo	is_eating(t_entry *data, t_philo *philo_param);
-t_philo	is_sleeping(t_entry *data, t_philo *philo_param);
-t_philo	is_thinking(t_entry *data, t_philo *philo_param);
-t_philo	ft_init_philo(t_entry *data, t_philo *philo_param);
-t_philo	ft_full_stomach(t_entry *data, t_philo *philo_param);
-void	ft_fork_unavailable(t_entry *data, t_philo *philo_param);
+
+/* main.c */
+void	ft_clean_philo(t_entry *data);
 
 #endif

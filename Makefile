@@ -36,10 +36,27 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c
 clean:
 	rm -rf $(OBJ_DIR)
 
-fclean:clean
-	rm -rf $(NAME) 
+fclean: clean
+	rm -rf $(NAME)
 
-re : fclean
+re: fclean
 	$(MAKE) all
 
-.PHONY: fclean clean all re
+# ─── Tests ────────────────────────────────────────────────
+TEST_PYTEST  = test/pytest/test_philo.py
+TEST_ROBOT   = test/robot/philo_tests.robot
+
+test: $(NAME) test-pytest test-robot
+
+test-pytest: $(NAME)
+	@echo "──── pytest ────"
+	@python3 -m pytest $(TEST_PYTEST) -v
+
+test-robot: $(NAME)
+	@echo "──── robot  ────"
+	@python3 -m robot -d test/robot/results $(TEST_ROBOT)
+
+test-clean:
+	rm -rf test/robot/results output.xml log.html report.html stdout.txt stderr.txt
+
+.PHONY: fclean clean all re test test-pytest test-robot test-clean

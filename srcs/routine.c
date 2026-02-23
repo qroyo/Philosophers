@@ -12,24 +12,92 @@
 
 #include "philo.h"
 
-t_philo	ft_routine(t_entry *data, t_philo *philo_param);
-void	ft_lock_and_sleep(t_entry *data, t_philo *philo_param);
-void	ft_loop_alive(t_entry *data, t_philo *philo_param);
-void	ft_fork_unavailable(t_entry *data, t_philo *philo_param);
-t_philo	ft_full_stomach(t_entry *data, t_philo *philo_param);
+static void	ft_routine(t_entry *data, t_philo *philo_param);
+static void	ft_loop_alive(t_entry *data, t_philo *philo_param);
+static int	ft_check_stop(t_entry *data);
+static int	ft_try_take_forks(t_entry *data, t_philo *philo_param);
 
 void	*eat_sleep_think(void *arg)
 {
-	t_entry	*data ;
+	t_entry	*data;
 	t_philo	philo_param;
 
-	data = (t_entry *) arg;
-	philo_param = ft_init_philo(data, &philo_param);
+	data = (t_entry *)arg;
+	ft_init_philo(data, &philo_param);
 	ft_loop_alive(data, &philo_param);
 	return (NULL);
 }
 
-int	ft_check_full(t_entry *data)
+/*
+** Even philosophers pick left fork first, odd pick right first.
+** This asymmetry prevents circular wait (deadlock prevention).
+** Returns 1 if both forks acquired, 0 otherwise.
+*/
+static int	ft_try_take_forks(t_entry *data, t_philo *philo_param)
+{
+	int	first;
+	int	second;
+
+	if (philo_param->id % 2 == 0)
+	{
+		first = philo_param->id;
+		second = philo_param->next_id;
+	}
+	else
+	{
+		first = philo_param->next_id;
+		second = philo_param->id;
+	}
+	pthread_mutex_lock(&data->fork[first]);
+	if (data->fork_philo[first] != 0)
+	{
+		pthread_mutex_unlock(&data->fork[first]);
+		return (0);
+	}
+	data->fork_philo[first] = 1;
+	pthread_mutex_unlock(&data->fork[first]);
+	pthread_mutex_lock(&data->fork[second]);
+	if (data->fork_philo[second] != 0)
+	{
+		pthread_mutex_unlock(&data->fork[second]);
+		pthread_mutex_lock(&data->fork[first]);
+		data->fork_philo[first] = 0;
+		pthread_mutex_unlock(&data->fork[first]);
+		return (0);
+	}
+	data->fork_philo[second] = 1;
+	pthread_mutex_unlock(&data->fork[second]);
+	return (1);
+}
+
+static void	ft_loop_alive(t_entry *data, t_philo *philo_param)
+{
+	if (philo_param->id % 2 == 1)
+		usleep(SCHEDULE_GRANULARITY_US);
+	pthread_mutex_lock(&data->is_alive);
+	while (data->alive == 1 && data->stop == 0)
+	{
+		pthread_mutex_unlock(&data->is_alive);
+		if (ft_try_take_forks(data, philo_param))
+		{
+			ft_routine(data, philo_param);
+			if (ft_check_stop(data))
+				return ;
+		}
+		else
+		{
+			usleep(SCHEDULE_GRANULARITY_US);
+		}
+		pthread_mutex_lock(&data->is_alive);
+	}
+	pthread_mutex_unlock(&data->is_alive);
+}
+
+/*
+** Checks if all philosophers have eaten enough.
+** Uses a separate 'stop' flag to distinguish from death.
+*/
+static int	ft_check_stop(t_entry *data)
 {
 	if (data->nb_meal != -1)
 	{
@@ -37,7 +105,7 @@ int	ft_check_full(t_entry *data)
 		if (data->nb_philo == data->philo_full)
 		{
 			pthread_mutex_unlock(&data->full_stomach);
-			pthread_mutex_lock(&data->is_alive);
+			ft_full_stomach(data);
 			return (1);
 		}
 		pthread_mutex_unlock(&data->full_stomach);
@@ -45,47 +113,33 @@ int	ft_check_full(t_entry *data)
 	return (0);
 }
 
-void	ft_loop_alive(t_entry *data, t_philo *philo_param)
+static void	ft_routine(t_entry *data, t_philo *philo_param)
 {
-	if (((*philo_param).id + 1) % 2 == 1)
-		usleep(500);
-	pthread_mutex_lock(&data->is_alive);
-	while (data->alive == 1)
+	is_eating(data, philo_param);
+	if (data->nb_meal != -1)
 	{
-		pthread_mutex_unlock(&data->is_alive);
-		pthread_mutex_lock(&data->fork[(*philo_param).id]);
-		if (data->fork_philo[(*philo_param).id] == 0)
+		pthread_mutex_lock(&data->full_stomach);
+		if (data->philo_full == data->nb_philo)
 		{
-			data->fork_philo[(*philo_param).id] = 1;
-			pthread_mutex_unlock(&data->fork[(*philo_param).id]);
-			(*philo_param) = ft_routine(data, philo_param);
-			if (ft_check_full(data) == 1)
-				break ;
+			pthread_mutex_unlock(&data->full_stomach);
+			return ;
 		}
-		else
-		{
-			pthread_mutex_unlock(&data->fork[(*philo_param).id]);
-			if ((*philo_param).think == 0)
-				(*philo_param) = is_thinking(data, philo_param);
-		}
-		pthread_mutex_lock(&data->is_alive);
+		pthread_mutex_unlock(&data->full_stomach);
 	}
-	pthread_mutex_unlock(&data->is_alive);
+	is_sleeping(data, philo_param);
+	is_thinking(data, philo_param);
+	if (data->nb_philo % 2 == 1)
+		ft_usleep(data->time_to_eat / 2, philo_param, data);
 }
 
-t_philo	ft_full_stomach(t_entry *data, t_philo *philo_param)
+/*
+** Sets the stop flag — simulation ends because all philos are fed,
+** not because one died. Keeps 'alive' semantics clean.
+*/
+void	ft_full_stomach(t_entry *data)
 {
 	pthread_mutex_lock(&data->is_alive);
-	data->alive = 0;
+	data->stop = 1;
 	pthread_mutex_unlock(&data->is_alive);
-	return (*philo_param);
 }
 
-void	ft_fork_unavailable(t_entry *data, t_philo *philo_param)
-{
-	pthread_mutex_lock(&data->fork[(*philo_param).id]);
-	data->fork_philo[(*philo_param).id] = 0;
-	pthread_mutex_unlock(&data->fork[(*philo_param).id]);
-	if ((*philo_param).think == 0)
-		(*philo_param) = is_thinking(data, philo_param);
-}

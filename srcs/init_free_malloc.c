@@ -20,18 +20,15 @@ int	ft_init_malloc(t_entry *data)
 	data->fork = malloc(data->nb_philo * sizeof(pthread_mutex_t));
 	if (!data->fork)
 		return (2);
-	data->next_id = malloc(data->nb_philo * sizeof(int));
-	if (!data->next_id)
-		return (3);
 	data->last_eat = malloc(data->nb_philo * sizeof(struct timeval));
 	if (!data->last_eat)
-		return (4);
+		return (3);
 	data->fork_philo = malloc(data->nb_philo * sizeof(int));
 	if (!data->fork_philo)
-		return (5);
+		return (4);
 	data->id_philo = malloc(data->nb_philo * sizeof(int));
 	if (!data->id_philo)
-		return (6);
+		return (5);
 	return (0);
 }
 
@@ -42,11 +39,9 @@ void	ft_free(int check_malloc, t_entry *data)
 	if (check_malloc >= 3)
 		free(data->fork);
 	if (check_malloc >= 4)
-		free(data->next_id);
-	if (check_malloc >= 5)
 		free(data->last_eat);
-	if (check_malloc >= 6)
+	if (check_malloc >= 5)
 		free(data->fork_philo);
-	if (check_malloc >= 7)
+	if (check_malloc >= 6)
 		free(data->id_philo);
 }
